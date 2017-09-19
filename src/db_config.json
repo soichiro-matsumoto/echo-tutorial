@@ -1,0 +1,9 @@
+{
+    "dbms" : "mysql",
+    "host" : "localhost",
+    "protocol" : "tcp",
+    "port" : 3306,
+    "user" : "root",
+    "pass" : "abcd1234",
+    "db_name" : "sakila"
+}

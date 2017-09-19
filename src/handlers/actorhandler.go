@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"echo-tutorial/src/models"
+	"gorm-tutorial/src/services"
 	"net/http"
 	"strconv"
 
@@ -12,34 +12,40 @@ import (
 type ActorContext struct {
 	// 埋め込み
 	*BaseContext
+	Service *services.ActorService
 }
 
 // NewActorContext ...
 // ActorContextのコンストラクタ
 func NewActorContext(c echo.Context) *ActorContext {
-	return &ActorContext{&BaseContext{c}}
+	return &ActorContext{&BaseContext{c}, services.NewActorService("db_config.json")}
 }
 
 // GetActorID ...
-// JSONのパラメータのactor_idを取得する
-func (c *ActorContext) GetActorID() (int, error) {
-	return strconv.Atoi(c.Param("actor_id"))
+// Pathパラメータのactor_idを取得する
+func (c *ActorContext) GetActorID() int {
+	actorID, err := strconv.Atoi(c.Param("actor_id"))
+	if err != nil {
+		panic(err)
+	}
+	return actorID
+}
+
+// GetRequestActor ...
+// RequestActorを取得する
+func (c *ActorContext) GetRequestActor() *RequestActor {
+	req := RequestActor{}
+	c.Bind(&req)
+	return &req
 }
 
 // ActorIndex ...
 // GET /api/actors
 func ActorIndex() echo.HandlerFunc {
 	return func(c echo.Context) error { //c をいじって Request, Responseを色々する
-
-		context := NewActorContext(c)
-
-		db, _ := context.GormOpen()
-		defer db.Close()
-
-		actors := []models.Actor{}
-		db.Find(&actors)
-
-		return c.JSON(http.StatusOK, actors)
+		ct := NewActorContext(c)
+		actors := ct.Service.GetActors()
+		return ct.JSON(http.StatusOK, actors)
 	}
 }
 
@@ -47,18 +53,10 @@ func ActorIndex() echo.HandlerFunc {
 // GET /api/actors/:actor_id
 func ActorShow() echo.HandlerFunc {
 	return func(c echo.Context) error {
-
-		context := NewActorContext(c)
-
-		db, _ := context.GormOpen()
-		defer db.Close()
-
-		actor := new(models.Actor)
-		actor.ActorID, _ = context.GetActorID()
-
-		db.First(&actor)
-
-		return c.JSON(http.StatusOK, actor)
+		ct := NewActorContext(c)
+		actorID := ct.GetActorID()
+		actor := ct.Service.GetActor(actorID)
+		return ct.JSON(http.StatusOK, actor)
 	}
 }
 
@@ -66,26 +64,10 @@ func ActorShow() echo.HandlerFunc {
 // POST /api/actors
 func ActorCreate() echo.HandlerFunc {
 	return func(c echo.Context) error {
-
-		context := NewActorContext(c)
-
-		request := new(RequestActor)
-		context.Bind(request)
-		err := context.Validate(request)
-		if err != nil {
-			return err
-		}
-
-		db, _ := context.GormOpen()
-		defer db.Close()
-
-		actor := new(models.Actor)
-		actor.FirstName = request.FirstName
-		actor.LastName = request.LastName
-
-		db.Create(&actor)
-
-		return c.JSON(http.StatusOK, actor)
+		ct := NewActorContext(c)
+		req := ct.GetRequestActor()
+		actor := ct.Service.CreateActor(req.FirstName, req.LastName)
+		return ct.JSON(http.StatusOK, actor)
 	}
 }
 
@@ -99,24 +81,11 @@ type RequestActor struct {
 // PUT /api/actors/:actor_id
 func ActorUpdate() echo.HandlerFunc {
 	return func(c echo.Context) error {
-
-		context := NewActorContext(c)
-		request := new(RequestActor)
-		context.Bind(request)
-
-		db, _ := context.GormOpen()
-		defer db.Close()
-
-		actor := new(models.Actor)
-		actor.ActorID, _ = context.GetActorID()
-		db.Find(&actor)
-
-		actor.FirstName = request.FirstName
-		actor.LastName = request.LastName
-
-		db.Save(&actor)
-
-		return c.JSON(http.StatusOK, actor)
+		ct := NewActorContext(c)
+		actorID := ct.GetActorID()
+		req := ct.GetRequestActor()
+		actor := ct.Service.UpdateActor(actorID, req.FirstName, req.LastName)
+		return ct.JSON(http.StatusOK, actor)
 	}
 }
 
@@ -124,18 +93,8 @@ func ActorUpdate() echo.HandlerFunc {
 // DELETE /api/actors/:actor_id
 func ActorDelete() echo.HandlerFunc {
 	return func(c echo.Context) error {
-
-		context := c.(*ActorContext)
-
-		db, _ := context.GormOpen()
-		defer db.Close()
-
-		actor := new(models.Actor)
-		actor.ActorID, _ = context.GetActorID()
-		db.Find(&actor)
-
-		db.Delete(&actor)
-
-		return c.JSON(http.StatusOK, actor)
+		ct := NewActorContext(c)
+		ct.Service.DeleteActor(ct.GetActorID())
+		return ct.NoContent(http.StatusOK)
 	}
 }

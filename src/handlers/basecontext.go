@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"echo-tutorial/src/config"
-
-	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 )
 
@@ -18,10 +15,4 @@ type BaseContext struct {
 // BaseContextのコンストラクタ
 func NewBaseContext(c echo.Context) *BaseContext {
 	return &BaseContext{c}
-}
-
-// GormOpen ...
-// GormDBを取得する
-func (c *BaseContext) GormOpen() (*gorm.DB, error) {
-	return config.Config.GormOpen()
 }
